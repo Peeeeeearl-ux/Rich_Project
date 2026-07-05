@@ -295,6 +295,7 @@
           <div class="value" id="sumDiv">-</div>
         </div>
       </div>
+      <div id="unconvertedNote" style="display:none;font-size:11px;color:var(--loss);margin:-10px 0 14px;">환율 정보가 없어 일부 해외 종목이 합계에서 제외됐어요 · "시세 갱신"을 눌러 환율을 가져와주세요</div>
 
       <div class="card">
         <div class="card-head">
@@ -415,6 +416,18 @@
           <button type="button" id="themeDarkBtn">다크</button>
           <button type="button" id="themeLightBtn">라이트</button>
         </div>
+      </div>
+
+      <div class="card">
+        <p class="card-title">표시 통화</p>
+        <div class="theme-toggle">
+          <button type="button" id="currencyKrwBtn">원화(KRW)</button>
+          <button type="button" id="currencyUsdBtn">달러(USD)</button>
+        </div>
+        <div style="font-size:11px;color:var(--text-secondary);margin-top:10px;line-height:1.5;">
+          총 평가금액 등 합산 금액을 어떤 통화로 볼지 정해요. 종목별 개별 금액(현재가·평단가 등)은 항상 원래 통화로 표시돼요.
+        </div>
+        <div id="exchangeRateStatus" style="font-size:11px;color:var(--text-secondary);margin-top:6px;">환율 정보 없음 · 홈에서 "시세 갱신"을 누르면 가져와요</div>
       </div>
 
       <div class="card ticket">
@@ -540,17 +553,54 @@
 const PALETTE = ['#1DB954','#4CC9F0','#F72585','#FFB703','#9B5DE5','#00BBF9','#F15BB5','#43AA8B'];
 const EGGS_PER_TRAY = 36; // 계란판 이미지가 6x6(36칸) 구조라 이에 맞춤
 const EGG_GRID_POS = [22.3, 33.4, 44.5, 55.6, 66.7, 77.8]; // 계란판 이미지 위 각 칸 중심의 %좌표(가로/세로 공용)
-let state = { holdings: [], transactions: [], goals: { current: null, history: [] } };
+let state = { holdings: [], transactions: [], goals: { current: null, history: [] }, exchangeRate: { usdToKrw: null, updatedAt: null } };
 function normalizeState(){
   state.holdings = state.holdings || [];
   state.transactions = state.transactions || [];
   state.goals = state.goals || { current: null, history: [] };
+  state.exchangeRate = state.exchangeRate || { usdToKrw: null, updatedAt: null };
 }
 
 const fmt = n => Number(n).toLocaleString('ko-KR', {maximumFractionDigits:2});
 const fmtPct = n => (n>0?'+':'') + n.toFixed(2) + '%';
 const todayStr = () => new Date().toISOString().slice(0,10);
 const cssVar = name => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+
+// 시세 코드로 통화를 추정한다. 코드가 없으면 국내 종목(원화)으로 간주하고,
+// ":KRX" 등 국내 거래소 표기가 없는 코드(예: AAPL)는 달러로 간주한다.
+function inferCurrency(symbol){
+  if(!symbol) return 'KRW';
+  const s = symbol.trim().toUpperCase();
+  if(s.includes(':KRX') || s.includes(':KOSDAQ') || s.includes(':KOSPI')) return 'KRW';
+  return 'USD';
+}
+function holdingCurrency(h){ return inferCurrency(h.priceSymbol); }
+
+function getDisplayCurrency(){
+  return localStorage.getItem('portfolio-display-currency') || 'KRW';
+}
+function saveDisplayCurrency(c){
+  localStorage.setItem('portfolio-display-currency', c);
+}
+function getExchangeRate(){
+  return (state.exchangeRate && state.exchangeRate.usdToKrw) || null;
+}
+// amount(해당 종목의 원래 통화 기준 금액)를 현재 표시 통화 기준으로 환산한다.
+// 환율 정보가 아직 없으면 null을 반환하고, 호출부에서 이를 "환산 불가"로 처리한다.
+function convertToDisplay(amount, fromCurrency){
+  const display = getDisplayCurrency();
+  if(fromCurrency === display) return amount;
+  const rate = getExchangeRate();
+  if(!rate) return null;
+  if(fromCurrency==='USD' && display==='KRW') return amount*rate;
+  if(fromCurrency==='KRW' && display==='USD') return amount/rate;
+  return amount;
+}
+function fmtMoney(amount, currency){
+  if(amount===null || amount===undefined || isNaN(amount)) return '-';
+  if(currency==='USD') return '$'+amount.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
+  return '₩'+fmt(amount);
+}
 
 document.getElementById('txDate').value = todayStr();
 
@@ -586,7 +636,32 @@ document.getElementById('themeLightBtn').addEventListener('click', ()=>applyThem
   document.getElementById('themeLightBtn').classList.toggle('on', saved==='light');
 })();
 
-function snapshotOf(s){ return JSON.stringify({holdings:s.holdings||[], transactions:s.transactions||[], goals:s.goals||null}); }
+function applyDisplayCurrency(c){
+  saveDisplayCurrency(c);
+  document.getElementById('currencyKrwBtn').classList.toggle('on', c==='KRW');
+  document.getElementById('currencyUsdBtn').classList.toggle('on', c==='USD');
+  render();
+}
+document.getElementById('currencyKrwBtn').addEventListener('click', ()=>applyDisplayCurrency('KRW'));
+document.getElementById('currencyUsdBtn').addEventListener('click', ()=>applyDisplayCurrency('USD'));
+(function initDisplayCurrency(){
+  const saved = getDisplayCurrency();
+  document.getElementById('currencyKrwBtn').classList.toggle('on', saved==='KRW');
+  document.getElementById('currencyUsdBtn').classList.toggle('on', saved==='USD');
+})();
+function renderExchangeRateStatus(){
+  const el = document.getElementById('exchangeRateStatus');
+  if(!el) return;
+  const rate = getExchangeRate();
+  if(!rate){
+    el.textContent = '환율 정보 없음 · 홈에서 "시세 갱신"을 누르면 가져와요';
+  } else {
+    const when = state.exchangeRate.updatedAt ? new Date(state.exchangeRate.updatedAt).toLocaleString('ko-KR') : '';
+    el.textContent = `환율: $1 = ₩${fmt(rate)} · ${when} 기준`;
+  }
+}
+
+function snapshotOf(s){ return JSON.stringify({holdings:s.holdings||[], transactions:s.transactions||[], goals:s.goals||null, exchangeRate:s.exchangeRate||null}); }
 let lastSnapshot = null;
 
 async function loadState(){
@@ -914,25 +989,45 @@ function refitSummaryValues(){
   els.forEach(el=>{ el.style.fontSize = minSize + 'px'; });
 }
 
+// 여러 종목의 (금액, 통화) 목록을 현재 표시 통화 기준으로 환산해 합산한다.
+// 환율이 없어 환산 못한 금액이 하나라도 있으면 unconverted=true로 표시해 호출부가 경고할 수 있게 한다.
+function sumInDisplayCurrency(items){
+  let total = 0, unconverted = false;
+  items.forEach(({amount, currency})=>{
+    const converted = convertToDisplay(amount, currency);
+    if(converted===null) unconverted = true;
+    else total += converted;
+  });
+  return { total, unconverted };
+}
+
 function render(){
   renderAccountFilter();
   const filter = document.getElementById('accountFilter').value || 'ALL';
   const visible = filter==='ALL' ? state.holdings : state.holdings.filter(h=>(h.account||'기본')===filter);
+  const display = getDisplayCurrency();
 
-  const totalValue = visible.reduce((s,h)=>s+h.shares*h.currentPrice,0);
-  const totalCost = visible.reduce((s,h)=>s+h.shares*h.avgCost,0);
+  const valueSum = sumInDisplayCurrency(visible.map(h=>({amount:h.shares*h.currentPrice, currency:holdingCurrency(h)})));
+  const costSum = sumInDisplayCurrency(visible.map(h=>({amount:h.shares*h.avgCost, currency:holdingCurrency(h)})));
+  const divSum = sumInDisplayCurrency(visible.map(h=>({amount:h.shares*(h.divAnnual||0), currency:holdingCurrency(h)})));
+  const totalValue = valueSum.total;
+  const totalCost = costSum.total;
   const totalReturn = totalCost>0 ? (totalValue-totalCost)/totalCost*100 : 0;
-  const totalDivIncome = visible.reduce((s,h)=>s+h.shares*(h.divAnnual||0),0);
+  const totalDivIncome = divSum.total;
   const divYield = totalValue>0 ? totalDivIncome/totalValue*100 : 0;
+  const hasUnconverted = valueSum.unconverted || costSum.unconverted || divSum.unconverted;
 
   const sumValueEl = document.getElementById('sumValue');
-  sumValueEl.textContent = totalValue>0 ? '₩'+fmt(totalValue) : '-';
+  sumValueEl.textContent = totalValue>0 ? fmtMoney(totalValue, display) : '-';
   const rEl = document.getElementById('sumReturn');
   rEl.textContent = visible.length ? fmtPct(totalReturn) : '-';
   rEl.className = 'value ' + (totalReturn>=0?'up':'down');
   const sumDivEl = document.getElementById('sumDiv');
   sumDivEl.textContent = visible.length ? divYield.toFixed(2)+'%' : '-';
   refitSummaryValues();
+
+  const unconvertedNoteEl = document.getElementById('unconvertedNote');
+  if(unconvertedNoteEl) unconvertedNoteEl.style.display = hasUnconverted ? 'block' : 'none';
 
   const colorMap = renderDial(visible, totalValue);
   renderDialTable(visible, totalValue, colorMap);
@@ -941,11 +1036,13 @@ function render(){
   renderAccountDatalist();
   renderGoal();
   renderDividendTab();
+  renderExchangeRateStatus();
   saveState();
 }
 
 function totalAssetValue(){
-  return state.holdings.reduce((s,h)=>s+h.shares*h.currentPrice,0);
+  const { total } = sumInDisplayCurrency(state.holdings.map(h=>({amount:h.shares*h.currentPrice, currency:holdingCurrency(h)})));
+  return total;
 }
 
 function monthlyDividendBreakdown(){
@@ -953,7 +1050,9 @@ function monthlyDividendBreakdown(){
   state.holdings.forEach(h=>{
     const months = h.divMonths || [];
     if(!months.length || !h.divAnnual) return;
-    const perPayment = h.shares * h.divAnnual / months.length;
+    const annualConverted = convertToDisplay(h.shares*h.divAnnual, holdingCurrency(h));
+    if(annualConverted===null) return; // 환율 없어 환산 못하는 종목은 월별 차트에서 제외
+    const perPayment = annualConverted / months.length;
     months.forEach(m=>{ if(m>=1 && m<=12) monthly[m-1] += perPayment; });
   });
   return monthly;
@@ -964,13 +1063,14 @@ function renderMonthlyDividendChart(){
   const max = Math.max(...monthly, 1);
   const accent = cssVar('--accent') || '#1DB954';
   const mutedColor = cssVar('--text-secondary') || '#B3B3B3';
+  const display = getDisplayCurrency();
   const w = 320, h = 130, barAreaH = 96, barW = 18, gap = (w - barW*12) / 13;
   let svg = `<svg viewBox="0 0 ${w} ${h}" style="width:100%;display:block;">`;
   monthly.forEach((val, i)=>{
     const barH = (val/max) * barAreaH;
     const x = gap + i*(barW+gap);
     const y = barAreaH - barH;
-    svg += `<rect x="${x}" y="${y}" width="${barW}" height="${Math.max(barH,1)}" rx="3" fill="${accent}" opacity="${val>0?1:0.25}"><title>${i+1}월 ₩${fmt(val)}</title></rect>`;
+    svg += `<rect x="${x}" y="${y}" width="${barW}" height="${Math.max(barH,1)}" rx="3" fill="${accent}" opacity="${val>0?1:0.25}"><title>${i+1}월 ${fmtMoney(val, display)}</title></rect>`;
     svg += `<text x="${x+barW/2}" y="${barAreaH+16}" text-anchor="middle" font-size="9" fill="${mutedColor}" font-family="-apple-system,sans-serif">${i+1}</text>`;
   });
   svg += `</svg>`;
@@ -980,14 +1080,20 @@ function renderMonthlyDividendChart(){
 function renderDividendTab(){
   const container = document.getElementById('dividendContent');
   const totalValue = totalAssetValue();
+  const display = getDisplayCurrency();
 
   const rows = state.holdings.map(h=>{
-    const annual = h.shares*(h.divAnnual||0);
+    const currency = holdingCurrency(h);
+    const annual = h.shares*(h.divAnnual||0); // 예상 연 배당금(원래 통화)
+    const paymentsPerYear = (h.divMonths && h.divMonths.length) ? h.divMonths.length : 1;
+    const avgPerPayment = annual / paymentsPerYear; // 회당 평균 배당금
+    const avgPerMonth = annual / 12; // 월 평균 배당금
     const yieldPct = h.currentPrice>0 ? (h.divAnnual||0)/h.currentPrice*100 : 0;
-    return { h, annual, yieldPct };
-  }).sort((a,b)=>b.annual-a.annual);
+    const annualConverted = convertToDisplay(annual, currency) || 0;
+    return { h, currency, annual, avgPerPayment, avgPerMonth, yieldPct, annualConverted };
+  }).sort((a,b)=>b.annualConverted-a.annualConverted);
 
-  const totalAnnual = rows.reduce((s,r)=>s+r.annual,0);
+  const { total: totalAnnual, unconverted: divUnconverted } = sumInDisplayCurrency(rows.map(r=>({amount:r.annual, currency:r.currency})));
   const avgYield = totalValue>0 ? totalAnnual/totalValue*100 : 0;
 
   if(!rows.length){
@@ -1003,9 +1109,10 @@ function renderDividendTab(){
 
   container.innerHTML = `
     <div class="div-summary">
-      <div class="cell"><div class="label">올해 예상 배당금</div><div class="value">₩${fmt(totalAnnual)}</div></div>
+      <div class="cell"><div class="label">올해 예상 배당금</div><div class="value">${fmtMoney(totalAnnual, display)}</div></div>
       <div class="cell"><div class="label">평균 배당수익률</div><div class="value">${avgYield.toFixed(2)}%</div></div>
     </div>
+    ${divUnconverted ? `<div style="font-size:11px;color:var(--loss);margin:-10px 0 14px;">환율 정보가 없어 일부 해외 종목이 합계에서 제외됐어요 · "시세 갱신"을 눌러 환율을 가져와주세요</div>` : ''}
     <div class="card">
       <p class="card-title">월별 예상 배당</p>
       ${renderMonthlyDividendChart()}
@@ -1020,11 +1127,14 @@ function renderDividendTab(){
             <span class="div-yield">${r.yieldPct.toFixed(2)}%</span>
           </div>
           <div class="div-chips">
+            <div class="chip"><span class="clabel">보유수량</span><span class="cval">${fmt(r.h.shares)}</span></div>
+            <div class="chip"><span class="clabel">회당 평균 배당금</span><span class="cval">${fmtMoney(r.avgPerPayment, r.currency)}</span></div>
+            <div class="chip"><span class="clabel">월 평균 배당금</span><span class="cval">${fmtMoney(r.avgPerMonth, r.currency)}</span></div>
             <div class="chip">
-              <span class="clabel">배당(연, 주당)</span>
+              <span class="clabel">주당 연배당</span>
               <input class="div-input" type="number" step="any" value="${r.h.divAnnual||0}" data-id="${holdingId(r.h.account,r.h.ticker)}">
             </div>
-            <div class="chip"><span class="clabel">연간 배당금액</span><span class="cval">₩${fmt(r.annual)}</span></div>
+            <div class="chip"><span class="clabel">예상 연 배당금</span><span class="cval">${fmtMoney(r.annual, r.currency)}</span></div>
           </div>
           <button class="pill-btn div-months-btn" data-id="${holdingId(r.h.account,r.h.ticker)}" style="margin-top:10px;">
             배당주기 ${r.h.divMonths && r.h.divMonths.length ? '· '+r.h.divMonths.join(',')+'월' : '설정 안 됨'}
@@ -1278,7 +1388,7 @@ function renderDial(visible, totalValue){
   if(totalValue>0){
     let start = -Math.PI/2;
     visible.forEach((h,i)=>{
-      const val = h.shares*h.currentPrice;
+      const val = convertToDisplay(h.shares*h.currentPrice, holdingCurrency(h)) || 0;
       const frac = val/totalValue;
       const end = start + frac*2*Math.PI;
       const large = (end-start) > Math.PI ? 1:0;
@@ -1307,7 +1417,7 @@ function renderDialTable(visible, totalValue, colorMap){
   const showAccount = getAccounts().length>1;
 
   const rows = visible.map(h=>{
-    const value = h.shares*h.currentPrice;
+    const value = convertToDisplay(h.shares*h.currentPrice, holdingCurrency(h)) || 0;
     const weight = totalValue>0 ? value/totalValue*100 : 0;
     const ret = periodReturn(h, period);
     return {h, value, weight, ret};
@@ -1343,9 +1453,12 @@ function renderTable(visible, totalValue, filter){
   body.innerHTML = '';
   document.getElementById('emptyMsg').style.display = visible.length ? 'none':'block';
 
+  function convertedValueOf(h){ return convertToDisplay(h.shares*h.currentPrice, holdingCurrency(h)) || 0; }
+
   function renderRow(h){
-    const value = h.shares*h.currentPrice;
-    const weight = totalValue>0 ? value/totalValue*100 : 0;
+    const currency = holdingCurrency(h);
+    const nativeValue = h.shares*h.currentPrice;
+    const weight = totalValue>0 ? convertedValueOf(h)/totalValue*100 : 0;
     const ret = periodReturn(h, period);
     const pl = (h.currentPrice - h.avgCost) * h.shares;
     const id = holdingId(h.account,h.ticker);
@@ -1364,11 +1477,11 @@ function renderTable(visible, totalValue, filter){
         </span>
       </div>
       <div class="holding-chips">
-        <div class="chip"><span class="clabel">평단가</span><span class="cval">${fmt(h.avgCost)}</span></div>
-        <div class="chip"><span class="clabel">현재가</span><span class="cval">${fmt(h.currentPrice)}</span></div>
+        <div class="chip"><span class="clabel">평단가</span><span class="cval">${fmtMoney(h.avgCost, currency)}</span></div>
+        <div class="chip"><span class="clabel">현재가</span><span class="cval">${fmtMoney(h.currentPrice, currency)}</span></div>
         <div class="chip"><span class="clabel">수량</span><span class="cval">${fmt(h.shares)}</span></div>
-        <div class="chip"><span class="clabel">평가금액</span><span class="cval">₩${fmt(value)}</span></div>
-        <div class="chip"><span class="clabel">평가손익</span><span class="cval ${pl>=0?'up':'down'}">${pl>=0?'+':'-'}₩${fmt(Math.abs(pl))}</span></div>
+        <div class="chip"><span class="clabel">평가금액</span><span class="cval">${fmtMoney(nativeValue, currency)}</span></div>
+        <div class="chip"><span class="clabel">평가손익</span><span class="cval ${pl>=0?'up':'down'}">${pl>=0?'+':'-'}${fmtMoney(Math.abs(pl), currency)}</span></div>
         <div class="chip"><span class="clabel">기간수익률</span><span class="cval ${ret>=0?'up':'down'}">${ret===null?'-':fmtPct(ret)}</span></div>
       </div>
     `;
@@ -1380,15 +1493,15 @@ function renderTable(visible, totalValue, filter){
     visible.forEach(h=>{ const a=h.account||'기본'; (groups[a]=groups[a]||[]).push(h); });
     Object.keys(groups).sort().forEach(acc=>{
       const list = groups[acc];
-      const groupValue = list.reduce((s,h)=>s+h.shares*h.currentPrice,0);
+      const { total: groupValue } = sumInDisplayCurrency(list.map(h=>({amount:h.shares*h.currentPrice, currency:holdingCurrency(h)})));
       const header = document.createElement('div');
       header.className = 'holding-group-header';
-      header.innerHTML = `<span>${acc}</span><span class="gval">₩${fmt(groupValue)}</span>`;
+      header.innerHTML = `<span>${acc}</span><span class="gval">${fmtMoney(groupValue, getDisplayCurrency())}</span>`;
       body.appendChild(header);
-      list.sort((a,b)=>(b.shares*b.currentPrice)-(a.shares*a.currentPrice)).forEach(renderRow);
+      list.sort((a,b)=>convertedValueOf(b)-convertedValueOf(a)).forEach(renderRow);
     });
   } else {
-    visible.slice().sort((a,b)=>(b.shares*b.currentPrice)-(a.shares*a.currentPrice)).forEach(renderRow);
+    visible.slice().sort((a,b)=>convertedValueOf(b)-convertedValueOf(a)).forEach(renderRow);
   }
 
   body.querySelectorAll('.edit-btn').forEach(btn=>{
@@ -1652,7 +1765,9 @@ document.getElementById('refreshPricesBtn').addEventListener('click', async ()=>
   btn.disabled = true;
   btn.textContent = '갱신 중...';
   try{
+    const needsFx = targets.some(h=>inferCurrency(h.priceSymbol)==='USD');
     const symbols = targets.map(h=>h.priceSymbol.trim());
+    if(needsFx) symbols.push('USD/KRW');
     const result = await fetchMarketPrices(symbols, apiKey);
     let updated = 0;
     const failed = [];
@@ -1669,6 +1784,13 @@ document.getElementById('refreshPricesBtn').addEventListener('click', async ()=>
         failed.push(h.name);
       }
     });
+    if(needsFx){
+      const fxEntry = result['USD/KRW'];
+      const fxRate = fxEntry && Number(fxEntry.price);
+      if(fxEntry && !fxEntry.code && fxRate>0){
+        state.exchangeRate = { usdToKrw: fxRate, updatedAt: new Date().toISOString() };
+      }
+    }
     render();
     showToast(failed.length ? `${updated}개 갱신, 실패: ${failed.join(', ')}` : `${updated}개 종목 시세를 갱신했어요`, 3000);
   }catch(e){
