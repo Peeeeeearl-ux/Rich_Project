@@ -1084,10 +1084,12 @@ function renderDividendTab(){
 
   const rows = state.holdings.map(h=>{
     const currency = holdingCurrency(h);
-    const annual = h.shares*(h.divAnnual||0); // 예상 연 배당금(원래 통화)
+    const annual = h.shares*(h.divAnnual||0); // 예상 연 배당금(보유수량 전체, 원래 통화)
     const paymentsPerYear = (h.divMonths && h.divMonths.length) ? h.divMonths.length : 1;
-    const avgPerPayment = annual / paymentsPerYear; // 회당 평균 배당금
-    const avgPerMonth = annual / 12; // 월 평균 배당금
+    // 회당/월 평균은 보유수량과 무관하게 "1주" 기준 금액으로 보여준다
+    // (보유수량을 곱하면 배당이 연 1회인 종목은 예상 연 배당금과 값이 똑같아 보여 혼란스러움)
+    const avgPerPayment = (h.divAnnual||0) / paymentsPerYear; // 회당 평균 배당금(1주 기준)
+    const avgPerMonth = (h.divAnnual||0) / 12; // 월 평균 배당금(1주 기준)
     const yieldPct = h.currentPrice>0 ? (h.divAnnual||0)/h.currentPrice*100 : 0;
     const annualConverted = convertToDisplay(annual, currency) || 0;
     return { h, currency, annual, avgPerPayment, avgPerMonth, yieldPct, annualConverted };
@@ -1128,8 +1130,8 @@ function renderDividendTab(){
           </div>
           <div class="div-chips">
             <div class="chip"><span class="clabel">보유수량</span><span class="cval">${fmt(r.h.shares)}</span></div>
-            <div class="chip"><span class="clabel">회당 평균 배당금</span><span class="cval">${fmtMoney(r.avgPerPayment, r.currency)}</span></div>
-            <div class="chip"><span class="clabel">월 평균 배당금</span><span class="cval">${fmtMoney(r.avgPerMonth, r.currency)}</span></div>
+            <div class="chip"><span class="clabel">회당 평균 배당금(1주)</span><span class="cval">${fmtMoney(r.avgPerPayment, r.currency)}</span></div>
+            <div class="chip"><span class="clabel">월 평균 배당금(1주)</span><span class="cval">${fmtMoney(r.avgPerMonth, r.currency)}</span></div>
             <div class="chip">
               <span class="clabel">주당 연배당</span>
               <input class="div-input" type="number" step="any" value="${r.h.divAnnual||0}" data-id="${holdingId(r.h.account,r.h.ticker)}">
