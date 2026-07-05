@@ -1,12 +1,12 @@
 <!DOCTYPE html>
-<html lang="ko" data-theme="dark">
+<html lang="ko" data-theme="light">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="theme-color" id="themeColorMeta" content="#121212">
+<meta name="theme-color" id="themeColorMeta" content="#FFFFFF">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icon-192.png">
 <title>내 포트폴리오</title>
@@ -75,10 +75,17 @@
 
   .card{background:var(--surface);border-radius:16px;padding:18px;margin-bottom:16px;}
   .card-title{font-size:13px;font-weight:700;color:var(--text-secondary);letter-spacing:0.4px;text-transform:uppercase;margin:0 0 14px;}
+  #dialSvgHolder{display:flex;justify-content:center;}
   .dial-legend-select{display:flex;justify-content:flex-end;margin-top:14px;}
   select.pill{
     font-family:var(--sans);font-size:12px;background:var(--input-bg);border:none;
-    color:var(--text);border-radius:20px;padding:6px 12px;appearance:none;
+    color:var(--text);border-radius:20px;padding:6px 26px 6px 12px;appearance:none;
+  }
+  .select-wrap{position:relative;display:inline-flex;}
+  .select-wrap::after{
+    content:"";position:absolute;right:11px;top:50%;width:6px;height:6px;
+    border-right:1.5px solid var(--text-secondary);border-bottom:1.5px solid var(--text-secondary);
+    transform:translateY(-65%) rotate(45deg);pointer-events:none;
   }
   .dial-table{width:100%;border-collapse:collapse;font-size:12.5px;margin-top:6px;table-layout:fixed;}
   .dial-table thead th{
@@ -97,26 +104,38 @@
   .swatch{width:9px;height:9px;border-radius:50%;flex-shrink:0;}
 
   .ledger-head{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:10px;}
-  .ledger-controls{display:flex;gap:6px;flex-wrap:wrap;}
-  .table-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch;border-radius:10px;}
-  table{width:100%;border-collapse:collapse;font-size:12.5px;min-width:620px;}
-  thead th{
-    text-align:right;font-weight:600;color:var(--text-secondary);font-size:10.5px;
-    letter-spacing:0.3px;text-transform:uppercase;padding:6px 6px;border-bottom:1px solid var(--border);
-    background:var(--surface);
+  .ledger-controls{display:flex;gap:6px;flex-wrap:wrap;align-items:center;}
+
+  .holdings-list{display:flex;flex-direction:column;}
+  .holding-group-header{
+    display:flex;justify-content:space-between;align-items:baseline;font-family:var(--sans);
+    font-weight:700;font-size:12px;color:var(--text-secondary);background:var(--surface2);
+    padding:8px 10px;border-radius:8px;margin:10px 0 4px;
   }
-  thead th:first-child, tbody td:first-child{text-align:left;position:sticky;left:0;background:var(--surface);z-index:2;}
-  tbody td{padding:9px 6px;text-align:right;border-bottom:1px solid var(--border);font-family:var(--mono);color:var(--text);}
-  .ticker-cell{font-family:var(--sans);font-size:13px;font-weight:700;position:relative;white-space:nowrap;}
+  .holding-group-header:first-child{margin-top:0;}
+  .holding-group-header .gval{font-weight:400;font-family:var(--mono);}
+  .holding-item{padding:14px 2px;border-bottom:1px solid var(--border);}
+  .holding-item:last-child{border-bottom:none;}
+  .holding-top{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:12px;}
+  .holding-chips{display:flex;flex-wrap:wrap;row-gap:12px;column-gap:16px;}
+  .chip{display:flex;flex-direction:column;gap:3px;min-width:56px;}
+  .chip .clabel{font-size:9.5px;color:var(--text-secondary);font-family:var(--sans);letter-spacing:0.3px;text-transform:uppercase;}
+  .chip .cval{font-family:var(--mono);font-size:12.5px;color:var(--text);}
+  .chip .cval.up{color:var(--gain);}
+  .chip .cval.down{color:var(--loss);}
+  .ticker-cell{font-family:var(--sans);font-size:14px;font-weight:700;position:relative;white-space:nowrap;}
   .ticker-cell .name{display:block;font-family:var(--sans);font-weight:400;font-size:10.5px;color:var(--text-secondary);}
-  .edit-name-btn{background:none;border:none;cursor:pointer;color:var(--text-secondary);font-size:11px;margin-left:4px;padding:0;}
+  .edit-name-btn{background:none;border:none;cursor:pointer;color:var(--text-secondary);font-size:12px;margin-left:4px;padding:0;}
   .edit-name-btn:hover{color:var(--accent);}
   input.price-input{
-    width:70px;font-family:var(--mono);font-size:12.5px;text-align:right;
+    width:64px;font-family:var(--mono);font-size:12.5px;text-align:left;
     border:1px solid var(--border);border-radius:6px;padding:4px 6px;background:var(--input-bg);color:var(--text);
   }
-  input.edit-input{width:60px;}
-  .del-btn{font-family:var(--sans);font-size:11px;color:var(--loss);background:none;border:none;cursor:pointer;padding:0;}
+  input.edit-input{width:64px;}
+  input.price-input::-webkit-outer-spin-button,
+  input.price-input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0;}
+  input.price-input[type=number]{appearance:textfield;-moz-appearance:textfield;}
+  .del-btn{font-family:var(--sans);font-size:12px;color:var(--loss);background:none;border:none;cursor:pointer;padding:0;flex-shrink:0;}
   .pill-btn{
     font-family:var(--sans);font-size:11px;color:var(--text);background:var(--input-bg);
     border:none;border-radius:20px;padding:6px 12px;cursor:pointer;
@@ -221,12 +240,14 @@
         <p class="card-title">비중 다이얼</p>
         <div id="dialSvgHolder"></div>
         <div class="dial-legend-select">
-          <select class="pill" id="dialSortSelect">
-            <option value="weight_desc">비중 큰 순</option>
-            <option value="return_desc">수익률 높은 순</option>
-            <option value="return_asc">수익률 낮은 순</option>
-            <option value="alpha">가나다(ABC) 순</option>
-          </select>
+          <span class="select-wrap">
+            <select class="pill" id="dialSortSelect">
+              <option value="weight_desc">비중 큰 순</option>
+              <option value="return_desc">수익률 높은 순</option>
+              <option value="return_asc">수익률 낮은 순</option>
+              <option value="alpha">가나다(ABC) 순</option>
+            </select>
+          </span>
         </div>
         <table class="dial-table">
           <thead><tr><th>종목</th><th>비중</th><th>수익률</th></tr></thead>
@@ -239,27 +260,19 @@
           <p class="card-title" style="margin:0;">보유 종목</p>
           <div class="ledger-controls">
             <button class="pill-btn" id="swapNameTickerBtn">코드↔이름</button>
-            <select class="pill" id="accountFilter"></select>
-            <select class="pill" id="periodSelect">
-              <option value="1w">1주</option>
-              <option value="1m">1개월</option>
-              <option value="3m">3개월</option>
-              <option value="1y">1년</option>
-              <option value="all" selected>전체</option>
-            </select>
+            <span class="select-wrap"><select class="pill" id="accountFilter"></select></span>
+            <span class="select-wrap">
+              <select class="pill" id="periodSelect">
+                <option value="1w">1주</option>
+                <option value="1m">1개월</option>
+                <option value="3m">3개월</option>
+                <option value="1y">1년</option>
+                <option value="all" selected>전체</option>
+              </select>
+            </span>
           </div>
         </div>
-        <div class="table-scroll">
-          <table>
-            <thead>
-              <tr>
-                <th>종목</th><th>수량</th><th>평단가</th><th>현재가</th>
-                <th>평가금액</th><th>비중</th><th>기간수익률</th><th>배당수익률</th><th></th>
-              </tr>
-            </thead>
-            <tbody id="holdingsBody"></tbody>
-          </table>
-        </div>
+        <div class="holdings-list" id="holdingsBody"></div>
         <div class="empty" id="emptyMsg" style="display:none;">아직 등록된 종목이 없어요. 거래 탭에서 추가해보세요.</div>
       </div>
     </section>
@@ -407,7 +420,7 @@ function applyTheme(theme){
 document.getElementById('themeDarkBtn').addEventListener('click', ()=>applyTheme('dark'));
 document.getElementById('themeLightBtn').addEventListener('click', ()=>applyTheme('light'));
 (function initTheme(){
-  const saved = localStorage.getItem('theme') || 'dark';
+  const saved = localStorage.getItem('theme') || 'light';
   document.documentElement.setAttribute('data-theme', saved);
   document.getElementById('themeColorMeta').content = saved==='light' ? '#FFFFFF' : '#121212';
   document.getElementById('themeDarkBtn').classList.toggle('on', saved==='dark');
@@ -618,7 +631,7 @@ function render(){
   const totalDivIncome = visible.reduce((s,h)=>s+h.shares*(h.divAnnual||0),0);
   const divYield = totalValue>0 ? totalDivIncome/totalValue*100 : 0;
 
-  document.getElementById('sumValue').textContent = totalValue>0 ? fmt(totalValue) : '-';
+  document.getElementById('sumValue').textContent = totalValue>0 ? '₩'+fmt(totalValue) : '-';
   const rEl = document.getElementById('sumReturn');
   rEl.textContent = visible.length ? fmtPct(totalReturn) : '-';
   rEl.className = 'value ' + (totalReturn>=0?'up':'down');
@@ -647,16 +660,14 @@ function renderAccountDatalist(){
 
 function renderDial(visible, totalValue){
   const holder = document.getElementById('dialSvgHolder');
-  const size = 260, cx=130, cy=130, rOuter=104, rInner=68;
+  const size = 200, cx=100, cy=100, rOuter=78, rInner=52;
   const borderColor = cssVar('--border') || '#2A2A2A';
-  const textColor = cssVar('--text') || '#FFFFFF';
-  const mutedColor = cssVar('--text-secondary') || '#B3B3B3';
-  let svg = `<svg width="100%" viewBox="0 0 ${size} ${size}">`;
+  let svg = `<svg viewBox="0 0 ${size} ${size}" style="width:100%;max-width:190px;display:block;">`;
   const colorMap = {};
 
   for(let i=0;i<72;i++){
     const ang = (i/72)*2*Math.PI - Math.PI/2;
-    const len = i%18===0 ? 10 : (i%9===0?6:3);
+    const len = i%18===0 ? 8 : (i%9===0?5:2);
     const x1 = cx+(rOuter+4)*Math.cos(ang), y1=cy+(rOuter+4)*Math.sin(ang);
     const x2 = cx+(rOuter+4+len)*Math.cos(ang), y2=cy+(rOuter+4+len)*Math.sin(ang);
     svg += `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${borderColor}" stroke-width="1"/>`;
@@ -682,8 +693,6 @@ function renderDial(visible, totalValue){
     svg += `<circle cx="${cx}" cy="${cy}" r="${(rOuter+rInner)/2}" fill="none" stroke="${borderColor}" stroke-width="${rOuter-rInner}"/>`;
   }
 
-  svg += `<text x="${cx}" y="${cy-4}" text-anchor="middle" font-family="ui-monospace,Menlo,Consolas,monospace" font-size="17" font-weight="700" fill="${textColor}">${totalValue>0?fmt(totalValue):'0'}</text>`;
-  svg += `<text x="${cx}" y="${cy+16}" text-anchor="middle" font-family="-apple-system,sans-serif" font-size="10" fill="${mutedColor}" letter-spacing="1">TOTAL</text>`;
   svg += `</svg>`;
   holder.innerHTML = svg;
   return colorMap;
@@ -738,22 +747,25 @@ function renderTable(visible, totalValue, filter){
     const ret = periodReturn(h, period);
     const divY = h.currentPrice>0 ? (h.divAnnual||0)/h.currentPrice*100 : 0;
     const id = holdingId(h.account,h.ticker);
-    const tr = document.createElement('tr');
-    tr.innerHTML = `
-      <td class="ticker-cell">${h.name || h.ticker}<span class="name">${h.name && h.name!==h.ticker ? h.ticker : ''}</span><button class="edit-name-btn" data-id="${id}" title="종목명 수정">✎</button></td>
-      <td><input class="price-input edit-input" type="number" step="any" value="${h.shares}" data-id="${id}" data-field="shares"></td>
-      <td><input class="price-input edit-input" type="number" step="any" value="${h.avgCost}" data-id="${id}" data-field="avgCost"></td>
-      <td><input class="price-input edit-input" type="number" step="any" value="${h.currentPrice}" data-id="${id}" data-field="currentPrice"></td>
-      <td>${fmt(value)}</td>
-      <td>${weight.toFixed(1)}%</td>
-      <td class="${ret>=0?'up':'down'}">${ret===null?'-':fmtPct(ret)}</td>
-      <td>
-        <input class="price-input edit-input" type="number" step="any" value="${h.divAnnual||0}" data-id="${id}" data-field="divAnnual" title="연간 배당금(주당)">
-        <span style="display:block;font-size:10px;color:var(--text-secondary);margin-top:2px;">${divY.toFixed(2)}%</span>
-      </td>
-      <td><button class="del-btn" data-id="${id}">삭제</button></td>
+    const item = document.createElement('div');
+    item.className = 'holding-item';
+    item.innerHTML = `
+      <div class="holding-top">
+        <span class="ticker-cell">${h.name || h.ticker}<span class="name">${h.name && h.name!==h.ticker ? h.ticker : ''}</span><button class="edit-name-btn" data-id="${id}" title="종목명 수정">✎</button></span>
+        <button class="del-btn" data-id="${id}">삭제</button>
+      </div>
+      <div class="holding-chips">
+        <div class="chip"><span class="clabel">수량</span><input class="price-input edit-input" type="number" step="any" value="${h.shares}" data-id="${id}" data-field="shares"></div>
+        <div class="chip"><span class="clabel">평단가</span><input class="price-input edit-input" type="number" step="any" value="${h.avgCost}" data-id="${id}" data-field="avgCost"></div>
+        <div class="chip"><span class="clabel">현재가</span><input class="price-input edit-input" type="number" step="any" value="${h.currentPrice}" data-id="${id}" data-field="currentPrice"></div>
+        <div class="chip"><span class="clabel">평가금액</span><span class="cval">₩${fmt(value)}</span></div>
+        <div class="chip"><span class="clabel">비중</span><span class="cval">${weight.toFixed(1)}%</span></div>
+        <div class="chip"><span class="clabel">기간수익률</span><span class="cval ${ret>=0?'up':'down'}">${ret===null?'-':fmtPct(ret)}</span></div>
+        <div class="chip"><span class="clabel">배당(연)</span><input class="price-input edit-input" type="number" step="any" value="${h.divAnnual||0}" data-id="${id}" data-field="divAnnual" title="연간 배당금(주당)"></div>
+        <div class="chip"><span class="clabel">배당수익률</span><span class="cval">${divY.toFixed(2)}%</span></div>
+      </div>
     `;
-    body.appendChild(tr);
+    body.appendChild(item);
   }
 
   if(filter==='ALL' && getAccounts().length>1){
@@ -762,9 +774,10 @@ function renderTable(visible, totalValue, filter){
     Object.keys(groups).sort().forEach(acc=>{
       const list = groups[acc];
       const groupValue = list.reduce((s,h)=>s+h.shares*h.currentPrice,0);
-      const headerTr = document.createElement('tr');
-      headerTr.innerHTML = `<td colspan="9" style="text-align:left;font-family:var(--sans);font-weight:700;color:var(--text-secondary);background:var(--surface2);padding-top:12px;">${acc} <span style="font-weight:400;font-family:var(--mono);">· ${fmt(groupValue)}</span></td>`;
-      body.appendChild(headerTr);
+      const header = document.createElement('div');
+      header.className = 'holding-group-header';
+      header.innerHTML = `<span>${acc}</span><span class="gval">₩${fmt(groupValue)}</span>`;
+      body.appendChild(header);
       list.sort((a,b)=>(b.shares*b.currentPrice)-(a.shares*a.currentPrice)).forEach(renderRow);
     });
   } else {
