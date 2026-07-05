@@ -223,15 +223,19 @@
   .egg-head{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:4px;}
   .egg-head .goal-label{font-family:var(--sans);font-size:12.5px;color:var(--text-secondary);}
   .egg-head .goal-pct{font-family:var(--mono);font-size:20px;font-weight:700;color:var(--accent);}
-  .egg-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:8px;margin:16px 0;}
-  .egg{
-    aspect-ratio:0.82;border-radius:50% 50% 50% 50% / 58% 58% 42% 42%;
-    border:1.5px solid var(--border);background:transparent;padding:0;cursor:pointer;
+  .egg-tray{position:relative;width:100%;max-width:320px;margin:16px auto 8px;aspect-ratio:1;}
+  .egg-tray-bg{width:100%;height:100%;object-fit:contain;display:block;user-select:none;-webkit-user-drag:none;}
+  .egg-hole{
+    position:absolute;width:11%;height:11%;transform:translate(-50%,-50%);
+    background:none;border:none;padding:0;cursor:pointer;
   }
-  .egg.filled{background:linear-gradient(160deg,#6EE0A0,var(--accent));border-color:var(--accent);}
-  .egg.latest{animation:eggPop .7s ease;}
-  @keyframes eggPop{0%{transform:scale(.8);opacity:.4;}55%{transform:scale(1.1);opacity:1;}100%{transform:scale(1);opacity:1;}}
-  @media (prefers-reduced-motion:reduce){.egg.latest{animation:none;}}
+  .egg-hole img{
+    position:absolute;top:-65%;left:-65%;width:230%;height:230%;
+    object-fit:contain;pointer-events:none;user-select:none;-webkit-user-drag:none;
+  }
+  .egg-hole img.latest{animation:eggPop .7s ease;}
+  @keyframes eggPop{0%{transform:scale(.6);opacity:.3;}55%{transform:scale(1.15);opacity:1;}100%{transform:scale(1);opacity:1;}}
+  @media (prefers-reduced-motion:reduce){.egg-hole img.latest{animation:none;}}
   .egg-next{font-family:var(--sans);font-size:14px;color:var(--text);margin-top:4px;}
   .egg-next b{font-family:var(--mono);color:var(--accent);}
   .egg-foot{font-size:11px;color:var(--text-secondary);margin-top:10px;}
@@ -534,7 +538,8 @@
 
 <script>
 const PALETTE = ['#1DB954','#4CC9F0','#F72585','#FFB703','#9B5DE5','#00BBF9','#F15BB5','#43AA8B'];
-const EGGS_PER_TRAY = 30;
+const EGGS_PER_TRAY = 36; // 계란판 이미지가 6x6(36칸) 구조라 이에 맞춤
+const EGG_GRID_POS = [22.3, 33.4, 44.5, 55.6, 66.7, 77.8]; // 계란판 이미지 위 각 칸 중심의 %좌표(가로/세로 공용)
 let state = { holdings: [], transactions: [], goals: { current: null, history: [] } };
 function normalizeState(){
   state.holdings = state.holdings || [];
@@ -1056,7 +1061,7 @@ function renderGoal(){
     container.innerHTML = `
       <div class="card">
         <p class="card-title">목표 설정</p>
-        <p style="font-size:13px;color:var(--text-secondary);margin-bottom:14px;line-height:1.6;">목표 금액을 정하면 계란 한 판(30칸)이 시작돼요. 자산이 늘어날 때마다 계란이 하나씩 채워집니다.</p>
+        <p style="font-size:13px;color:var(--text-secondary);margin-bottom:14px;line-height:1.6;">목표 금액을 정하면 계란 한 판(36칸)이 시작돼요. 자산이 늘어날 때마다 계란이 하나씩 채워집니다.</p>
         <button class="submit" id="goalSetupBtn">목표 설정하기</button>
       </div>
     `;
@@ -1084,10 +1089,13 @@ function renderGoal(){
 
   let eggsHtml = '';
   for(let i=1;i<=EGGS_PER_TRAY;i++){
-    const cls = ['egg'];
-    if(i<=filled) cls.push('filled');
-    if(i===filled && justFilled) cls.push('latest');
-    eggsHtml += `<button type="button" class="${cls.join(' ')}" data-index="${i}" aria-label="${i}번째 계란"></button>`;
+    const row = Math.floor((i-1)/6), col = (i-1)%6;
+    const left = EGG_GRID_POS[col], top = EGG_GRID_POS[row];
+    const isFilled = i<=filled;
+    const isLatest = i===filled && justFilled;
+    eggsHtml += `<button type="button" class="egg-hole" style="left:${left}%;top:${top}%;" data-index="${i}" aria-label="${i}번째 계란">
+      ${isFilled ? `<img src="egg-single.png" alt="" class="${isLatest?'latest':''}">` : ''}
+    </button>`;
   }
 
   const remaining = Math.max(0, Math.ceil((filled+1)*perEgg - totalValue));
@@ -1098,7 +1106,10 @@ function renderGoal(){
         <span class="goal-label">목표 ₩${fmt(goal.targetAmount)} · ${trayNo}번째 판</span>
         <span class="goal-pct">${pct.toFixed(0)}%</span>
       </div>
-      <div class="egg-grid">${eggsHtml}</div>
+      <div class="egg-tray">
+        <img src="egg-tray-empty.png" alt="계란판" class="egg-tray-bg">
+        ${eggsHtml}
+      </div>
       ${completed
         ? `<div class="goal-complete-badge">목표를 달성했어요!</div><button class="submit" id="goalNextBtn">다음 목표 설정하기</button>`
         : `<div class="egg-next">다음 계란까지 <b>₩${fmt(remaining)}</b> 남았어요</div>`
@@ -1109,7 +1120,7 @@ function renderGoal(){
     ${state.goals.history.length ? renderGoalArchive() : ''}
   `;
 
-  container.querySelectorAll('.egg[data-index]').forEach(btn=>{
+  container.querySelectorAll('.egg-hole[data-index]').forEach(btn=>{
     btn.addEventListener('click', ()=>{
       const idx = Number(btn.dataset.index);
       const log = (goal.eggLog||[]).find(l=>l.index===idx);
