@@ -981,7 +981,14 @@ document.getElementById('syncNowBtn').addEventListener('click', ()=> syncNow(tru
 
 if('serviceWorker' in navigator){
   window.addEventListener('load', ()=>{
-    navigator.serviceWorker.register('sw.js').catch(()=>{});
+    navigator.serviceWorker.register('sw.js').then(reg=>{ reg.update(); }).catch(()=>{});
+  });
+  // 새 서비스워커가 제어권을 잡으면 한 번만 새로고침해 최신 화면을 즉시 반영
+  let swRefreshing = false;
+  navigator.serviceWorker.addEventListener('controllerchange', ()=>{
+    if(swRefreshing) return;
+    swRefreshing = true;
+    window.location.reload();
   });
 }
 
