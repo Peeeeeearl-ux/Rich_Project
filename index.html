@@ -199,6 +199,7 @@
     position:fixed;bottom:calc(78px + env(safe-area-inset-bottom));left:50%;transform:translateX(-50%);
     background:var(--accent);color:var(--accent-contrast);padding:9px 18px;border-radius:20px;
     font-size:12.5px;font-weight:700;opacity:0;pointer-events:none;transition:opacity 0.25s;z-index:50;
+    max-width:calc(100% - 32px);text-align:center;white-space:normal;word-break:break-word;box-sizing:border-box;
   }
   .toast.show{opacity:1;}
 
@@ -1861,7 +1862,9 @@ document.getElementById('refreshPricesBtn').addEventListener('click', async ()=>
         }
         updated++;
       } else {
-        failed.push(h.name);
+        const reason = entry && entry.message ? entry.message : '응답 없음';
+        console.error('[시세 갱신 실패]', h.name, h.priceSymbol, entry);
+        failed.push({ name: h.name, reason });
       }
     });
     if(needsFx){
@@ -1869,10 +1872,17 @@ document.getElementById('refreshPricesBtn').addEventListener('click', async ()=>
       const fxRate = fxEntry && Number(fxEntry.price);
       if(fxEntry && !fxEntry.code && fxRate>0){
         state.exchangeRate = { usdToKrw: fxRate, updatedAt: new Date().toISOString() };
+      } else if(fxEntry && fxEntry.code){
+        console.error('[환율 갱신 실패]', 'USD/KRW', fxEntry);
       }
     }
     render();
-    showToast(failed.length ? `${updated}개 갱신, 실패: ${failed.join(', ')}` : `${updated}개 종목 시세를 갱신했어요`, 3000);
+    if(failed.length){
+      const detail = failed.map(f=>`${f.name}: ${f.reason}`).join(' / ');
+      showToast(`${updated}개 갱신, 실패 ${failed.length}개 — ${detail}`, 6000);
+    } else {
+      showToast(`${updated}개 종목 시세를 갱신했어요`, 3000);
+    }
   }catch(e){
     showToast('시세 갱신 실패: ' + e.message);
   }finally{
